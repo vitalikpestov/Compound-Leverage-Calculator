@@ -1,109 +1,191 @@
 # Compound Leverage Calculator — Loan vs Sell
 
-Одностраничный калькулятор, который сравнивает две стратегии управления активом на горизонте 10-30 лет:
+A single-page calculator that compares two strategies for managing an asset over a 5-30 year horizon:
+
+1. **Loan** — keep the asset as collateral, borrow against it monthly (asset stays, debt and LTV grow).
+2. **Sell** — sell the asset gradually (asset shrinks, cash accumulates).
+
+Supported assets: **BTC · ETH · SOL · Stocks & ETF · Gold · Real Estate**.
+
+## Demo
+
+GitHub Pages: `https://vitalikpestov.github.io/Compound-Leverage-Calculator/` (enable via Settings → Pages → Source: `main` / `/root`).
+
+## What it models
+
+### Asset price model
+
+```
+price(m) = base_price × (1 + CAGR/100)^(m/12) × [1 + amplitude × sin(2π × m / (period × 12))]
+```
+
+CAGR is the long-term growth rate, cycles (optional) are sinusoidal corrections on top of the trend. Crypto ≈ 4-year cycle, real estate ≈ 10 years.
+
+### Loan strategy (monthly)
+
+```
+for each month:
+  debt = debt × (1 + rate/12) + monthly_withdrawal
+  LTV = debt / (asset × price(m))
+  net_worth = asset × price(m) − debt
+```
+
+When LTV crosses the liquidation threshold, the row is marked in the table and a warning chip appears in the summary. Simulation does not stop (matches how most lending protocols handle margin call — gradual unwind).
+
+### Sell strategy — gradual (BTC/ETH/SOL/Stocks/Gold)
+
+```
+for each month:
+  qty_to_sell = min(remaining, monthly_withdrawal / price(m))
+  remaining -= qty_to_sell
+  withdrawn += qty_to_sell × price(m)
+  if remaining = 0: shortfall accumulates
+```
+
+### Sell strategy — lump-sum (Real Estate)
+
+```
+month 0: cash = asset × base_price  (sold entirely)
+for each month:
+  cash = cash × (1 + cash_APY/12) − monthly_withdrawal
+```
+
+USD account earns risk-free yield (default 4% APY).
+
+### Capital contribution
+
+Both strategies receive identical contributions to keep the comparison honest:
+
+- Frequency: monthly / quarterly / annual
+- Each period buys `contribution_USD / price(m)` more units of the asset
+- For lump-sum sell mode, contributions add to the cash account instead
+
+## Asset presets
+
+| Asset | CAGR | Loan LTV | Liq. threshold | Cycle | Sell mode |
+|---|---|---|---|---|---|
+| Bitcoin | 20% | 73% | 78% | ±35% / 4 years | gradual |
+| Ethereum | 25% | 80% | 82.5% | ±40% / 4 years | gradual |
+| Solana | 30% | 65% | 75% | ±50% / 3 years | gradual |
+| Stocks & ETF | 12% | 50% | 80% | ±25% / 7 years | gradual |
+| Gold | 9% | 60% | 80% | ±15% / 7 years | gradual |
+| Real Estate | 7% | 70% | 80% | ±10% / 10 years | **lump-sum** |
+
+CAGR values are forward-looking long-term consensus, not historical (BTC's 74% annualized 2015-2024 is survivorship bias from a sub-$1 launch — won't repeat at scale).
+
+Crypto LTV / liquidation thresholds match real Aave v3 and Kamino Lend parameters (Ethereum/Solana). All values are editable in the UI after picking a preset.
+
+### Sample lending market data
+
+| Asset | Protocol | Network | Collateral | Borrow rate (USDC) | Max LTV | Liq. threshold |
+|---|---|---|---|---|---|---|
+| BTC | Aave v3 | Ethereum | WBTC | 6.2% | 73% | 78% |
+| BTC | Aave v3 | Base | cbBTC | 5.6% | 73% | 78% |
+| ETH | Aave v3 | Ethereum | wstETH | 6.2% | 80% | 82.5% |
+| ETH | Aave v3 | Base | cbETH | 5.6% | 74% | 77% |
+| SOL | Kamino Lend | Solana | SOL | 8.5% | 65% | 75% |
+
+These are sample values — verify on app.aave.com / app.kamino.finance before relying on them.
+
+## UI components
+
+- **6 asset cards** with default CAGR / LTV badges
+- **Horizon selector** (5/10/15/20/25/30 years) directly under the asset picker
+- **Lending conditions card** (Aave / Kamino) appears for crypto assets with "Apply to form" button
+- **5 summary metrics**: Loan net worth, Sell net worth, Withdrawn USD (both + shortfall), Debt, Avg/Max LTV
+- **Verdict banner**: which strategy wins by net worth + warnings about LTV crossings or shortfall
+- **4 charts in a 2×2 grid**: Net worth comparison, cumulative withdrawn USD, asset quantity in portfolio, loan LTV with liquidation threshold marker
+- **Annual snapshot table**: year · price · debt · LTV · withdrawn (loan/sell) · loan net worth · remaining asset · sell net worth
+- **RU/EN localization** via switch in the header
+
+## Running locally
+
+Open `index.html` in any modern browser. Zero build, zero dependencies beyond Chart.js (CDN).
+
+```bash
+# Optional — for dev convenience
+python3 -m http.server 8080
+# http://localhost:8080
+```
+
+## Stack
+
+- HTML + CSS + vanilla JS (single `index.html` file)
+- Chart.js 4.4.1 (CDN)
+- Inter / JetBrains Mono fonts (Google Fonts)
+
+## File structure
+
+```
+.
+├── index.html                              # Everything: markup + styles + logic
+├── README.md                               # This file
+├── .gitignore                              # Excludes .env
+├── .env.example                            # Secret template
+└── compound-leverage-calculator-tz.md      # Original technical spec (Russian)
+```
+
+## Disclaimer
+
+All figures are educational modeling, not financial advice. Real loans and sales have fees, taxes, liquidity, slippage, oracle risk and tax events not modeled here.
+
+## Lineage
+
+Visual reference and core idea from Bitkamp's YouTube video "Why the wealthy never sell their assets". This model uses honest compound CAGR + optional sinusoidal cycles; the original Bitkamp calculator embeds additional bull-cycle corrections, so its forward net worth at identical inputs comes out higher.
+
+---
+
+# Русская версия
+
+Одностраничный калькулятор, который сравнивает две стратегии управления активом на горизонте 5-30 лет:
 
 1. **Loan** — актив в залоге, ежемесячно берём займ на нужную сумму (актив сохраняется, долг и LTV растут).
 2. **Sell** — постепенно продаём актив (актив тает, кэш приходит).
 
 Поддерживаемые активы: **BTC · ETH · SOL · Акции и ETF · Золото · Недвижимость**.
 
-## Демо
-
-GitHub Pages: `https://vitalikpestov.github.io/Compound-Leverage-Calculator/` (после включения Pages в Settings → Pages → Source: main → /root).
-
 ## Что считает
 
-### Модель цены актива
+**Модель цены актива:**
 
 ```
-цена(m) = базовая_цена × (1 + CAGR/100)^(m/12) × [1 + amp × sin(2π × m / (период × 12))]
+цена(m) = базовая_цена × (1 + CAGR/100)^(m/12) × [1 + амплитуда × sin(2π × m / (период × 12))]
 ```
 
 CAGR — долгосрочный темп роста, циклы (опционально) — синусоидальные коррекции поверх тренда. Для крипты периоды ≈ 4 года, для недвижимости ≈ 10.
 
-### Стратегия Loan (помесячно)
+**Стратегия Loan (помесячно):** долг растёт по ставке и пополняется на сумму ежемесячного вывода. LTV = долг / (актив × цена). При пересечении порога ликвидации строка таблицы подсвечивается, симуляция продолжается.
 
-```
-для каждого месяца:
-  debt = debt × (1 + ставка/12) + ежемесячный_вывод
-  LTV = debt / (актив × цена(m))
-  net_worth = актив × цена(m) − debt
-```
+**Стратегия Sell (постепенная):** каждый месяц продаём столько единиц актива, сколько нужно для вывода. Когда актив кончается — накапливается недобор.
 
-Если LTV пересекает порог ликвидации — флаг в карточке "пересечений" и подсветка строки таблицы. Симуляция не останавливается (как в большинстве lending-протоколов с margin call).
+**Стратегия Sell (разовая, для недвижимости):** в момент 0 продаём всё и кладём на USD-счёт под 4% APY (редактируется). Из счёта ежемесячно выводим.
 
-### Стратегия Sell — постепенная (BTC/ETH/SOL/Золото)
-
-```
-для каждого месяца:
-  qty_to_sell = min(остаток, ежемесячный_вывод / цена(m))
-  остаток -= qty_to_sell
-  выведено += qty_to_sell × цена(m)
-  если остаток = 0: накапливается недобор
-```
-
-### Стратегия Sell — разовая (Недвижимость)
-
-```
-month 0: кэш = актив × базовая_цена  (продали целиком)
-для каждого месяца:
-  кэш = кэш × (1 + cash_APY/12) − ежемесячный_вывод
-```
-
-USD-счёт растёт по безриск-ставке (по умолчанию 4% APY).
+**Пополнение капитала:** настраивается частота (мес/кварт/год) и сумма USD. Каждый период покупается актив по текущей цене. Применяется к обеим стратегиям одинаково для честного сравнения.
 
 ## Пресеты активов
 
 | Актив | CAGR | LTV займа | Порог ликв. | Цикл | Sell-режим |
 |---|---|---|---|---|---|
-| Bitcoin | 15% | 50% | 90% | ±35% / 4 года | постепенный |
-| Ethereum | 18% | 50% | 85% | ±40% / 4 года | постепенный |
-| Solana | 25% | 40% | 85% | ±50% / 3 года | постепенный |
-| Акции и ETF | 10% | 50% | 80% | ±25% / 7 лет | постепенный |
-| Золото | 6% | 60% | 80% | ±15% / 7 лет | постепенный |
+| Bitcoin | 20% | 73% | 78% | ±35% / 4 года | постепенный |
+| Ethereum | 25% | 80% | 82.5% | ±40% / 4 года | постепенный |
+| Solana | 30% | 65% | 75% | ±50% / 3 года | постепенный |
+| Акции и ETF | 12% | 50% | 80% | ±25% / 7 лет | постепенный |
+| Золото | 9% | 60% | 80% | ±15% / 7 лет | постепенный |
 | Недвижимость | 7% | 70% | 80% | ±10% / 10 лет | **разовый** |
 
-Все параметры редактируются в интерфейсе после выбора пресета.
+CAGR — forward-looking долгосрочный консенсус, не историческая доходность (74% годовых BTC за 2015-2024 — survivorship bias стартовой $0 цены, не повторится).
 
-## Что показывает интерфейс
-
-- **5 итоговых карточек**: Net worth займа, Net worth продажи, Выведено USD (обе стратегии + недобор), Долг, Средний и Макс LTV.
-- **Вердикт-плашка**: какая стратегия выгоднее по net worth + предупреждения о пересечениях LTV и недоборе.
-- **4 графика 2×2**: Net worth сравнение, накопленный выведенный USD, количество актива в портфеле, LTV займа с пунктиром порога ликвидации.
-- **Таблица годовых снимков**: год · цена · долг · LTV · выведено (займ/продажа) · net worth займа · остаток актива · net worth продажи.
-- **Локализация RU/EN** через переключатель в шапке.
+Параметры LTV и порога ликвидации для крипты соответствуют реальным значениям протоколов **Aave v3** (Ethereum, Base) и **Kamino Lend** (Solana). Все значения редактируются в UI.
 
 ## Запуск
 
-Открыть `index.html` локально в браузере. Никаких билдов, никаких зависимостей кроме Chart.js с CDN.
+Открой `index.html` в браузере. Никаких билдов, никаких зависимостей кроме Chart.js с CDN.
 
 ```bash
-# Опционально — для удобства разработки
 python3 -m http.server 8080
-# Открыть http://localhost:8080
-```
-
-## Стек
-
-- HTML + CSS + ванильный JS (один файл `index.html`)
-- Chart.js 4.4.1 (CDN)
-- Шрифты Inter / JetBrains Mono (Google Fonts)
-
-## Структура
-
-```
-.
-├── index.html           # Весь калькулятор: разметка + стили + логика
-├── README.md            # Этот файл
-├── .gitignore           # Исключения, включая .env
-├── .env.example         # Шаблон для секретов
-└── compound-leverage-calculator-tz.md   # Изначальное ТЗ
+# http://localhost:8080
 ```
 
 ## Дисклеймер
 
-Все цифры — образовательная модель, не финансовый совет. Реальные займы и продажи имеют комиссии, налоги, ликвидности, прокурсные риски, спреды и пр., которые в этой модели не учтены.
-
-## Lineage
-
-Идея и визуальный референс — видео "Почему БОГАТЫЕ никогда не продают активы" (Bitkamp). Здесь модель сделана с честным compound-CAGR + опциональными синусоидальными циклами; в оригинальном калькуляторе Bitkamp путь цены включает дополнительные bull-cycle коррекции, поэтому net worth у них при тех же входах получается выше.
+Все цифры — образовательная модель, не финансовый совет. Реальные займы и продажи имеют комиссии, налоги, ликвидности, проскальзывания, оракульный и налоговый риски, не учтённые в модели.
