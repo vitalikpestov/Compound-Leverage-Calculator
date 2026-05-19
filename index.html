@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Compound Leverage Calculator — Loan vs Sell</title>
+<meta name="description" content="Сравнение двух стратегий: брать займ под залог актива или постепенно его продавать. BTC, ETH, SOL, золото, недвижимость." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #F6F2EA;
+    --bg-deep: #EFEAE0;
+    --surface: #FBF8F2;
+    --surface-2: #FFFFFF;
+    --border: rgba(36, 40, 48, 0.08);
+    --border-strong: rgba(36, 40, 48, 0.14);
+    --ink: #1A1E26;
+    --ink-2: #3A4050;
+    --muted: #7B7E87;
+    --muted-2: #9A9CA3;
+    --navy: #1F2A44;
+    --teal: #2F7D6B;
+    --teal-soft: rgba(47, 125, 107, 0.12);
+    --amber: #C8864E;
+    --amber-soft: rgba(200, 134, 78, 0.14);
+    --sand: #B7A78A;
+    --sand-soft: rgba(183, 167, 138, 0.16);
+    --rust: #B2573A;
+    --rust-soft: rgba(178, 87, 58, 0.14);
+    --focus: #2F7D6B;
+    --r-xl: 24px;
+    --r-lg: 18px;
+    --r-md: 12px;
+    --r-sm: 8px;
+    --shadow-sm: 0 1px 2px rgba(24,28,40,0.03), 0 1px 1px rgba(24,28,40,0.02);
+    --shadow-md: 0 2px 6px rgba(24,28,40,0.04), 0 6px 18px rgba(24,28,40,0.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .app { max-width: 1280px; margin: 0 auto; padding: 32px 28px 72px; }
+
+  /* ===== Top bar ===== */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 18px; margin-bottom: 28px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--navy); display: grid; place-items: center;
+    color: #F6F2EA; font-weight: 700; font-size: 13px; letter-spacing: -0.02em;
+  }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+  .brand-name { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+  .brand-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; margin-top: 2px; }
+
+  .topbar-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+  .segmented {
+    display: inline-flex; padding: 4px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 999px; gap: 2px;
+  }
+  .segmented button {
+    appearance: none; border: 0; background: transparent;
+    font: inherit; color: var(--muted);
+    padding: 7px 14px; border-radius: 999px;
+    cursor: pointer; font-size: 13px; font-weight: 500; letter-spacing: -0.005em;
+    transition: background .18s ease, color .18s ease;
+  }
+  .segmented button:hover { color: var(--ink-2); }
+  .segmented button[aria-pressed="true"] {
+    background: var(--ink); color: var(--surface-2);
+  }
+  .segmented button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* ===== Hero ===== */
+  .hero { margin-bottom: 24px; max-width: 760px; }
+  .overline {
+    text-transform: uppercase; font-size: 11px; letter-spacing: 0.14em;
+    color: var(--muted); font-weight: 600; margin-bottom: 10px;
+  }
+  .h1 {
+    font-size: clamp(26px, 3.2vw, 36px); line-height: 1.12;
+    letter-spacing: -0.025em; font-weight: 600;
+    margin: 0 0 10px; color: var(--ink);
+  }
+  .h1 em { font-style: normal; color: var(--teal); }
+  .hero-sub { color: var(--muted); font-size: 14.5px; max-width: 620px; }
+
+  /* ===== Card ===== */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r-xl); padding: 26px;
+  }
+  .card + .card { margin-top: 18px; }
+  .card-header { margin-bottom: 18px; }
+  .card-title {
+    font-size: 17px; font-weight: 600; letter-spacing: -0.015em;
+    margin: 0 0 4px; color: var(--ink);
+  }
+  .card-helper { color: var(--muted); font-size: 13px; margin: 0; }
+
+  /* ===== Asset picker ===== */
+  .asset-picker {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px; margin-top: 4px;
+  }
+  .asset-btn {
+    appearance: none; border: 1px solid var(--border-strong);
+    background: var(--surface-2); border-radius: var(--r-md);
+    padding: 12px 10px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+    transition: all .18s ease;
+  }
+  .asset-btn:hover { border-color: var(--ink-2); transform: translateY(-1px); }
+  .asset-btn[aria-pressed="true"] {
+    background: var(--ink); color: var(--surface-2); border-color: var(--ink);
+  }
+  .asset-btn[aria-pressed="true"] .asset-sub { color: rgba(255,255,255,.7); }
+  .asset-icon { font-size: 18px; line-height: 1; margin-bottom: 2px; }
+  .asset-name { font-weight: 600; font-size: 14px; letter-spacing: -0.01em; }
+  .asset-sub { font-size: 11px; color: var(--muted); }
+
+  /* ===== Inputs ===== */
+  .inputs-grid {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-size: 12px; font-weight: 500; color: var(--ink-2);
+    letter-spacing: 0.01em; display: flex; align-items: center; justify-content: space-between;
+  }
+  .field .unit-tag { color: var(--muted); font-weight: 500; font-size: 11px; }
+  .input-wrap {
+    position: relative; background: var(--surface-2);
+    border: 1px solid var(--border-strong); border-radius: var(--r-md);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .input-wrap:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(47,125,107,.12); }
+  .input-wrap input {
+    appearance: none; border: 0; background: transparent;
+    width: 100%; padding: 11px 12px;
+    font: inherit; color: var(--ink);
+    font-variant-numeric: tabular-nums; letter-spacing: -0.005em;
+  }
+  .input-wrap input:focus { outline: 0; }
+  .input-wrap .unit {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: 13px; pointer-events: none;
+  }
+  .helper { color: var(--muted); font-size: 11.5px; line-height: 1.35; min-height: 16px; }
+
+  /* ===== Summary cards ===== */
+  .summary {
+    display: grid; grid-template-columns: repeat(5, minmax(0,1fr));
+    gap: 12px; margin-top: 18px;
+  }
+  .metric {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 6px;
+    transition: transform .15s ease;
+  }
+  .metric:hover { transform: translateY(-1px); }
+  .metric-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: grid; place-items: center; font-size: 14px;
+    background: var(--teal-soft); color: var(--teal);
+  }
+  .metric.amber .metric-icon { background: var(--amber-soft); color: var(--amber); }
+  .metric.sand  .metric-icon { background: var(--sand-soft);  color: var(--ink-2); }
+  .metric.rust  .metric-icon { background: var(--rust-soft);  color: var(--rust); }
+  .metric-label { font-size: 11.5px; color: var(--muted); font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; }
+  .metric-value {
+    font-size: 22px; font-weight: 600; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums; line-height: 1.1; color: var(--ink);
+  }
+  .metric-sub { font-size: 12px; color: var(--muted); }
+
+  /* ===== Verdict banner ===== */
+  .verdict {
+    margin-top: 16px; padding: 14px 18px;
+    background: var(--teal-soft); border: 1px solid rgba(47,125,107,.22);
+    border-radius: var(--r-lg);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    color: var(--ink);
+  }
+  .verdict.warn { background: var(--amber-soft); border-color: rgba(200,134,78,.28); }
+  .verdict.danger { background: var(--rust-soft); border-color: rgba(178,87,58,.28); color: var(--rust); }
+  .verdict-icon { font-size: 18px; }
+  .verdict-text { font-size: 14px; font-weight: 500; }
+
+  /* ===== Charts grid ===== */
+  .charts {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px;
+  }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 20px; }
+  .chart-card .ch-overline { font-size: 10.5px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; }
+  .chart-card .ch-title { font-size: 15px; font-weight: 600; margin: 4px 0 14px; letter-spacing: -0.01em; }
+  .chart-card .ch-header {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+  }
+  .ch-legend { display: flex; gap: 10px; flex-wrap: wrap; }
+  .legend-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted); padding: 4px 8px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+  }
+  .swatch { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .swatch.loan { background: var(--teal); }
+  .swatch.sell { background: var(--sand); }
+  .swatch.amber { background: var(--amber); }
+  .swatch.rust { background: var(--rust); }
+  .chart-canvas-wrap { position: relative; height: 260px; }
+
+  /* ===== Annual table ===== */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.annual {
+    width: 100%; border-collapse: separate; border-spacing: 0;
+    font-variant-numeric: tabular-nums; min-width: 720px;
+  }
+  table.annual th, table.annual td {
+    text-align: right; padding: 10px 12px;
+    border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  table.annual th:first-child, table.annual td:first-child { text-align: left; }
+  table.annual th {
+    color: var(--muted); font-weight: 500; font-size: 11px;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    position: sticky; top: 0; background: var(--surface);
+  }
+  table.annual tbody tr:hover { background: rgba(36,40,48,0.03); }
+  table.annual tr.last { background: var(--teal-soft); }
+  table.annual tr.warn td { color: var(--rust); }
+  table.annual td .sub { color: var(--muted); font-size: 11px; display: block; margin-top: 2px; }
+
+  /* ===== Footer ===== */
+  .foot {
+    margin-top: 24px; color: var(--muted); font-size: 12px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+
+  /* ===== Tooltip ===== */
+  .chart-tooltip {
+    position: absolute; pointer-events: none; background: var(--ink); color: #fff;
+    padding: 10px 12px; border-radius: 10px; font-size: 12px;
+    opacity: 0; transition: opacity .15s ease;
+    box-shadow: 0 4px 14px rgba(0,0,0,.18);
+    transform: translate(-50%, -110%);
+    z-index: 5; min-width: 160px;
+  }
+  .chart-tooltip .tt-title { font-size: 11px; color: rgba(255,255,255,.65); margin-bottom: 6px; letter-spacing: 0.03em; }
+  .chart-tooltip .tt-row { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+  .chart-tooltip .tt-row + .tt-row { margin-top: 3px; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 1024px) {
+    .summary { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .charts { grid-template-columns: 1fr; }
+    .inputs-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .asset-picker { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  }
+  @media (max-width: 640px) {
+    .app { padding: 20px 16px 64px; }
+    .summary { grid-template-columns: 1fr 1fr; }
+    .inputs-grid { grid-template-columns: 1fr; }
+    .asset-picker { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .h1 { font-size: 24px; }
+    .chart-canvas-wrap { height: 220px; }
+  }
+</style>
+</head>
+<body>
+
+<main class="app" id="app">
+
+  <!-- ============ TOPBAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">CL</div>
+      <div class="brand-text">
+        <span class="brand-name">Compound Leverage</span>
+        <span class="brand-sub" data-i18n="brand.sub">Loan vs Sell</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="segmented" role="group" aria-label="Horizon presets" id="presets">
+        <button type="button" data-years="10" aria-pressed="false">10</button>
+        <button type="button" data-years="15" aria-pressed="true">15</button>
+        <button type="button" data-years="20" aria-pressed="false">20</button>
+        <button type="button" data-years="25" aria-pressed="false">25</button>
+        <button type="button" data-years="30" aria-pressed="false">30</button>
+      </div>
+      <div class="segmented" role="group" aria-label="Language" id="langSwitch">
+        <button type="button" data-lang="ru" aria-pressed="true">RU</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="overline" data-i18n="hero.overline">Сравнение стратегий</div>
+    <h1 class="h1" data-i18n="hero.title">Брать <em>займ под залог</em> или постепенно <em>продавать</em> актив</h1>
+    <p class="hero-sub" data-i18n="hero.sub">Помесячная модель двух стратегий. Сравните чистый капитал, накопленный кэш, остаток актива и LTV-риск на выбранном горизонте.</p>
+  </section>
+
+  <!-- ============ ASSET PICKER ============ -->
+  <section class="card" aria-labelledby="assetTitle">
+    <div class="card-header">
+      <h2 class="card-title" id="assetTitle" data-i18n="asset.title">Актив</h2>
+      <p class="card-helper" data-i18n="asset.helper">Выберите актив. Пресет CAGR, LTV-займа и режима продажи подставится автоматически и останется редактируемым.</p>
+    </div>
+    <div class="asset-picker" id="assetPicker" role="group" aria-label="Asset selector">
+      <button type="button" class="asset-btn" data-asset="btc" aria-pressed="true">
+        <span class="asset-icon">₿</span>
+        <span class="asset-name">Bitcoin</span>
+        <span class="asset-sub" data-i18n="asset.btc.sub">CAGR 15% · LTV 50%</span>
+      </button>
+      <button type="button" class="asset-btn" data-asset="eth">
+        <span class="asset-icon">Ξ</span>
+        <span class="asset-name">Ethereum</span>
+        <span class="asset-sub" data-i18n="asset.eth.sub">CAGR 18% · LTV 50%</span>
+      </button>
+      <button type="button" class="asset-btn" data-asset="sol">
+        <span class="asset-icon">◎</span>
+        <span class="asset-name">Solana</span>
+        <span class="asset-sub" data-i18n="asset.sol.sub">CAGR 25% · LTV 40%</span>
+      </button>
+      <button type="button" class="asset-btn" data-asset="gold">
+        <span class="asset-icon">🪙</span>
+        <span class="asset-name" data-i18n="asset.gold.name">Золото</span>
+        <span class="asset-sub" data-i18n="asset.gold.sub">CAGR 6% · LTV 60%</span>
+      </button>
+      <button type="button" class="asset-btn" data-asset="realestate">
+        <span class="asset-icon">🏠</span>
+        <span class="asset-name" data-i18n="asset.re.name">Недвижимость</span>
+        <span class="asset-sub" data-i18n="asset.re.sub">CAGR 7% · разовая</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ INPUTS ============ -->
+  <section class="card" aria-labelledby="inputsTitle">
+    <div class="card-header">
+      <div class="overline" data-i18n="inputs.overline">Параметры</div>
+      <h2 class="card-title" id="inputsTitle" data-i18n="inputs.title">Настройте актив, займ и горизонт</h2>
+    </div>
+    <div class="inputs-grid">
+      <div class="field">
+        <label data-i18n="f.qty">Кол-во актива <span class="unit-tag" id="qty-unit">BTC</span></label>
+        <div class="input-wrap"><input id="f-qty" inputmode="decimal" autocomplete="off" /></div>
+        <span class="helper" data-i18n="f.qty.help">Сколько единиц актива у вас на старте.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.price">Базовая цена актива <span class="unit-tag">USD</span></label>
+        <div class="input-wrap"><input id="f-price" inputmode="decimal" autocomplete="off" /><span class="unit">$</span></div>
+        <span class="helper" data-i18n="f.price.help">Цена 1 единицы на дату старта прогноза.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.withdraw">Ежемесячный вывод <span class="unit-tag">USD</span></label>
+        <div class="input-wrap"><input id="f-withdraw" inputmode="decimal" autocomplete="off" /><span class="unit">$</span></div>
+        <span class="helper" data-i18n="f.withdraw.help">Обе стратегии пытаются достать эту сумму каждый месяц.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.cagr">CAGR актива <span class="unit-tag">% /год</span></label>
+        <div class="input-wrap"><input id="f-cagr" inputmode="decimal" autocomplete="off" /><span class="unit">%</span></div>
+        <span class="helper" data-i18n="f.cagr.help">Долгосрочный темп роста цены. Внутри пути возможны коррекции.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.loanrate">Ставка по займу <span class="unit-tag">% /год</span></label>
+        <div class="input-wrap"><input id="f-loanrate" inputmode="decimal" autocomplete="off" /><span class="unit">%</span></div>
+        <span class="helper" data-i18n="f.loanrate.help">Годовой APR. Начисляется на тело долга помесячно.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.liq">Порог ликвидации LTV <span class="unit-tag">%</span></label>
+        <div class="input-wrap"><input id="f-liq" inputmode="decimal" autocomplete="off" /><span class="unit">%</span></div>
+        <span class="helper" data-i18n="f.liq.help">Отмечается на графике LTV. Симуляция не останавливается.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.sellmode">Режим продажи</label>
+        <div class="segmented" id="sellMode" role="group" aria-label="Sell mode" style="width:100%;">
+          <button type="button" data-mode="gradual" aria-pressed="true" style="flex:1;" data-i18n="sellmode.gradual">постепенно</button>
+          <button type="button" data-mode="lumpsum" aria-pressed="false" style="flex:1;" data-i18n="sellmode.lumpsum">разово</button>
+        </div>
+        <span class="helper" data-i18n="f.sellmode.help">Для недвижимости — разово. Для крипты/золота — постепенно.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.cashapy">Ставка кэш-счёта (разовая продажа) <span class="unit-tag">%</span></label>
+        <div class="input-wrap"><input id="f-cashapy" inputmode="decimal" autocomplete="off" /><span class="unit">%</span></div>
+        <span class="helper" data-i18n="f.cashapy.help">Доходность USD-счёта, куда легли деньги после разовой продажи.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.cycles">Циклы цены</label>
+        <div class="segmented" id="cyclesToggle" role="group" aria-label="Cycles" style="width:100%;">
+          <button type="button" data-on="1" aria-pressed="true" style="flex:1;" data-i18n="cycles.on">с волнами</button>
+          <button type="button" data-on="0" aria-pressed="false" style="flex:1;" data-i18n="cycles.off">плавно</button>
+        </div>
+        <span class="helper" data-i18n="f.cycles.help">Волны амплитуды поверх CAGR — реалистичнее для крипты.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.cycleamp">Амплитуда цикла <span class="unit-tag">%</span></label>
+        <div class="input-wrap"><input id="f-cycleamp" inputmode="decimal" autocomplete="off" /><span class="unit">%</span></div>
+        <span class="helper" data-i18n="f.cycleamp.help">Размах отклонения от тренда. 0% = без волн.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.cycleperiod">Период цикла <span class="unit-tag" data-i18n="unit.years">лет</span></label>
+        <div class="input-wrap"><input id="f-cycleperiod" inputmode="decimal" autocomplete="off" /></div>
+        <span class="helper" data-i18n="f.cycleperiod.help">Полный круг волны: BTC ≈ 4 года, недвижимость ≈ 10.</span>
+      </div>
+      <div class="field">
+        <label data-i18n="f.years">Горизонт <span class="unit-tag" data-i18n="unit.years">лет</span></label>
+        <div class="input-wrap"><input id="f-years" inputmode="numeric" autocomplete="off" /></div>
+        <span class="helper" data-i18n="f.years.help">Длина симуляции в годах.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SUMMARY CARDS ============ -->
+  <section class="summary" aria-live="polite" aria-atomic="true">
+    <div class="metric">
+      <div class="metric-icon">📊</div>
+      <span class="metric-label" data-i18n="m.networthloan">Net worth займа</span>
+      <span class="metric-value" id="m-nw-loan">—</span>
+      <span class="metric-sub" id="m-nw-loan-sub">—</span>
+    </div>
+    <div class="metric sand">
+      <div class="metric-icon">📉</div>
+      <span class="metric-label" data-i18n="m.networthsell">Net worth продажи</span>
+      <span class="metric-value" id="m-nw-sell">—</span>
+      <span class="metric-sub" id="m-nw-sell-sub">—</span>
+    </div>
+    <div class="metric">
+      <div class="metric-icon">💵</div>
+      <span class="metric-label" data-i18n="m.withdrawn">Выведено USD</span>
+      <span class="metric-value" id="m-withdrawn">—</span>
+      <span class="metric-sub" id="m-withdrawn-sub">—</span>
+    </div>
+    <div class="metric amber">
+      <div class="metric-icon">📈</div>
+      <span class="metric-label" data-i18n="m.debt">Долг</span>
+      <span class="metric-value" id="m-debt">—</span>
+      <span class="metric-sub" id="m-debt-sub">—</span>
+    </div>
+    <div class="metric rust">
+      <div class="metric-icon">⚠️</div>
+      <span class="metric-label" data-i18n="m.ltv">Средний LTV / Макс</span>
+      <span class="metric-value" id="m-ltv">—</span>
+      <span class="metric-sub" id="m-ltv-sub">—</span>
+    </div>
+  </section>
+
+  <div class="verdict" id="verdict" role="status">
+    <span class="verdict-icon">✦</span>
+    <span class="verdict-text" id="verdictText">—</span>
+  </div>
+
+  <!-- ============ CHARTS ============ -->
+  <section class="charts">
+    <div class="chart-card">
+      <div class="ch-header">
+        <div>
+          <div class="ch-overline" data-i18n="ch1.over">Equity</div>
+          <div class="ch-title" data-i18n="ch1.title">Net worth: займ vs продажа</div>
+        </div>
+        <div class="ch-legend">
+          <span class="legend-chip"><span class="swatch loan"></span><span data-i18n="legend.loan">Займ</span></span>
+          <span class="legend-chip"><span class="swatch sell"></span><span data-i18n="legend.sell">Продажа</span></span>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-networth"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="ch-header">
+        <div>
+          <div class="ch-overline" data-i18n="ch2.over">Кэш</div>
+          <div class="ch-title" data-i18n="ch2.title">Накопленный выведенный USD</div>
+        </div>
+        <div class="ch-legend">
+          <span class="legend-chip"><span class="swatch loan"></span><span data-i18n="legend.loan">Займ</span></span>
+          <span class="legend-chip"><span class="swatch sell"></span><span data-i18n="legend.sell">Продажа</span></span>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-withdrawn"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="ch-header">
+        <div>
+          <div class="ch-overline" id="ch3-over" data-i18n="ch3.over">BTC</div>
+          <div class="ch-title" data-i18n="ch3.title">Количество актива в портфеле</div>
+        </div>
+        <div class="ch-legend">
+          <span class="legend-chip"><span class="swatch loan"></span><span data-i18n="legend.loan">Займ</span></span>
+          <span class="legend-chip"><span class="swatch sell"></span><span data-i18n="legend.sell">Продажа</span></span>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-qty"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="ch-header">
+        <div>
+          <div class="ch-overline" data-i18n="ch4.over">Риск</div>
+          <div class="ch-title" data-i18n="ch4.title">LTV займа и порог ликвидации</div>
+        </div>
+        <div class="ch-legend">
+          <span class="legend-chip"><span class="swatch amber"></span><span data-i18n="legend.ltv">LTV займа</span></span>
+          <span class="legend-chip"><span class="swatch rust"></span><span id="liq-legend">Порог 90%</span></span>
+        </div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-ltv"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ============ TABLE ============ -->
+  <section class="card" aria-labelledby="tableTitle" style="margin-top:18px;">
+    <div class="card-header">
+      <div class="overline" data-i18n="table.over">Сравнение</div>
+      <h2 class="card-title" id="tableTitle" data-i18n="table.title">Годовые снимки стратегии</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="annual" id="annualTable">
+        <thead><tr id="annualHead"></tr></thead>
+        <tbody id="annualBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span data-i18n="foot.basis">Базис: помесячная модель. Все цифры — образовательные, не финансовый совет.</span>
+    <span><a href="https://github.com/vitalikpestov/Compound-Leverage-Calculator" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:none;border-bottom:1px dashed var(--muted-2);">GitHub</a></span>
+  </footer>
+
+</main>
+
+<script>
+/* ==================================================================
+ *  TRANSLATIONS
+ * ================================================================== */
+const translations = {
+  ru: {
+    "brand.sub": "Loan vs Sell",
+    "hero.overline": "Сравнение стратегий",
+    "hero.title": 'Брать <em>займ под залог</em> или постепенно <em>продавать</em> актив',
+    "hero.sub": "Помесячная модель двух стратегий. Сравните чистый капитал, накопленный кэш, остаток актива и LTV-риск на выбранном горизонте.",
+    "asset.title": "Актив",
+    "asset.helper": "Выберите актив. Пресет CAGR, LTV-займа и режима продажи подставится автоматически и останется редактируемым.",
+    "asset.btc.sub": "CAGR 15% · LTV 50%",
+    "asset.eth.sub": "CAGR 18% · LTV 50%",
+    "asset.sol.sub": "CAGR 25% · LTV 40%",
+    "asset.gold.name": "Золото",
+    "asset.gold.sub": "CAGR 6% · LTV 60%",
+    "asset.re.name": "Недвижимость",
+    "asset.re.sub": "CAGR 7% · разовая",
+    "inputs.overline": "Параметры",
+    "inputs.title": "Настройте актив, займ и горизонт",
+    "f.qty": "Кол-во актива",
+    "f.qty.help": "Сколько единиц актива у вас на старте.",
+    "f.price": "Базовая цена актива",
+    "f.price.help": "Цена 1 единицы на дату старта прогноза.",
+    "f.withdraw": "Ежемесячный вывод",
+    "f.withdraw.help": "Обе стратегии пытаются достать эту сумму каждый месяц.",
+    "f.cagr": "CAGR актива",
+    "f.cagr.help": "Долгосрочный темп роста цены. Внутри пути возможны коррекции.",
+    "f.loanrate": "Ставка по займу",
+    "f.loanrate.help": "Годовой APR. Начисляется на тело долга помесячно.",
+    "f.liq": "Порог ликвидации LTV",
+    "f.liq.help": "Отмечается на графике LTV. Симуляция не останавливается.",
+    "f.sellmode": "Режим продажи",
+    "f.sellmode.help": "Для недвижимости — разово. Для крипты/золота — постепенно.",
+    "sellmode.gradual": "постепенно",
+    "sellmode.lumpsum": "разово",
+    "f.cashapy": "Ставка кэш-счёта (разовая продажа)",
+    "f.cashapy.help": "Доходность USD-счёта, куда легли деньги после разовой продажи.",
+    "f.cycles": "Циклы цены",
+    "f.cycles.help": "Волны амплитуды поверх CAGR — реалистичнее для крипты.",
+    "cycles.on": "с волнами",
+    "cycles.off": "плавно",
+    "f.cycleamp": "Амплитуда цикла",
+    "f.cycleamp.help": "Размах отклонения от тренда. 0% = без волн.",
+    "f.cycleperiod": "Период цикла",
+    "f.cycleperiod.help": "Полный круг волны: BTC ≈ 4 года, недвижимость ≈ 10.",
+    "f.years": "Горизонт",
+    "f.years.help": "Длина симуляции в годах.",
+    "unit.years": "лет",
+    "m.networthloan": "Net worth займа",
+    "m.networthsell": "Net worth продажи",
+    "m.withdrawn": "Выведено USD",
+    "m.debt": "Долг",
+    "m.ltv": "Средний LTV / Макс",
+    "ch1.over": "Equity",
+    "ch1.title": "Net worth: займ vs продажа",
+    "ch2.over": "Кэш",
+    "ch2.title": "Накопленный выведенный USD",
+    "ch3.over": "Актив",
+    "ch3.title": "Количество актива в портфеле",
+    "ch4.over": "Риск",
+    "ch4.title": "LTV займа и порог ликвидации",
+    "legend.loan": "Займ",
+    "legend.sell": "Продажа",
+    "legend.ltv": "LTV займа",
+    "table.over": "Сравнение",
+    "table.title": "Годовые снимки стратегии",
+    "table.col.year": "Год",
+    "table.col.price": "Цена актива",
+    "table.col.debt": "Долг займа",
+    "table.col.ltv": "LTV",
+    "table.col.wd": "Выведено USD",
+    "table.col.nwloan": "Net worth займа",
+    "table.col.qtysell": "Актив после прод.",
+    "table.col.nwsell": "Net worth прод.",
+    "table.sub.loan": "займ",
+    "table.sub.sell": "продажа",
+    "foot.basis": "Базис: помесячная модель. Все цифры — образовательные, не финансовый совет.",
+    "verdict.loan_better": "Loan-стратегия выгоднее: +{diff} к net worth, актив сохранён",
+    "verdict.sell_better": "Sell-стратегия выгоднее: +{diff} к net worth",
+    "verdict.liquidated": "⚠️ В Loan-стратегии произошло {n} событий превышения порога LTV — велик риск margin call",
+    "verdict.shortfall": "В Sell-стратегии актив закончился: недобор {usd}",
+    "shortfall.label": "недобор",
+    "subDebtSold": "продано {n}",
+    "subWithdrawnLoan": "займ: {a} · продажа: {b}",
+    "subAverage": "ср. за период"
+  },
+  en: {
+    "brand.sub": "Loan vs Sell",
+    "hero.overline": "Strategy comparison",
+    "hero.title": '<em>Borrow against</em> your asset or <em>sell</em> it gradually',
+    "hero.sub": "Monthly model of two strategies. Compare net worth, cumulative cash, remaining asset and LTV risk over the chosen horizon.",
+    "asset.title": "Asset",
+    "asset.helper": "Pick an asset. Default CAGR, loan LTV and sell mode will be filled in and remain editable.",
+    "asset.btc.sub": "CAGR 15% · LTV 50%",
+    "asset.eth.sub": "CAGR 18% · LTV 50%",
+    "asset.sol.sub": "CAGR 25% · LTV 40%",
+    "asset.gold.name": "Gold",
+    "asset.gold.sub": "CAGR 6% · LTV 60%",
+    "asset.re.name": "Real estate",
+    "asset.re.sub": "CAGR 7% · lump-sum",
+    "inputs.overline": "Parameters",
+    "inputs.title": "Asset, loan and horizon",
+    "f.qty": "Asset quantity",
+    "f.qty.help": "Units of asset you start with.",
+    "f.price": "Asset base price",
+    "f.price.help": "Price of 1 unit at the forecast start date.",
+    "f.withdraw": "Monthly withdrawal",
+    "f.withdraw.help": "Both strategies try to pull this amount each month.",
+    "f.cagr": "Asset CAGR",
+    "f.cagr.help": "Long-term growth rate. Path may include corrections.",
+    "f.loanrate": "Loan rate",
+    "f.loanrate.help": "Annual APR. Accrues monthly on outstanding debt.",
+    "f.liq": "Liquidation LTV",
+    "f.liq.help": "Marked on the LTV chart. Simulation does not stop.",
+    "f.sellmode": "Sell mode",
+    "f.sellmode.help": "Real estate — lump-sum. Crypto / gold — gradual.",
+    "sellmode.gradual": "gradual",
+    "sellmode.lumpsum": "lump-sum",
+    "f.cashapy": "Cash account APY (lump-sum)",
+    "f.cashapy.help": "Yield on USD account after a lump-sum sale.",
+    "f.cycles": "Price cycles",
+    "f.cycles.help": "Amplitude waves on top of CAGR — realistic for crypto.",
+    "cycles.on": "with waves",
+    "cycles.off": "smooth",
+    "f.cycleamp": "Cycle amplitude",
+    "f.cycleamp.help": "Swing around the trend. 0% = no waves.",
+    "f.cycleperiod": "Cycle period",
+    "f.cycleperiod.help": "Full wave: BTC ≈ 4 years, real estate ≈ 10.",
+    "f.years": "Horizon",
+    "f.years.help": "Simulation length in years.",
+    "unit.years": "yrs",
+    "m.networthloan": "Net worth — loan",
+    "m.networthsell": "Net worth — sell",
+    "m.withdrawn": "Withdrawn USD",
+    "m.debt": "Debt",
+    "m.ltv": "Avg LTV / Max",
+    "ch1.over": "Equity",
+    "ch1.title": "Net worth: loan vs sell",
+    "ch2.over": "Cash",
+    "ch2.title": "Cumulative withdrawn USD",
+    "ch3.over": "Asset",
+    "ch3.title": "Asset units in portfolio",
+    "ch4.over": "Risk",
+    "ch4.title": "Loan LTV and liquidation threshold",
+    "legend.loan": "Loan",
+    "legend.sell": "Sell",
+    "legend.ltv": "Loan LTV",
+    "table.over": "Comparison",
+    "table.title": "Annual strategy snapshots",
+    "table.col.year": "Year",
+    "table.col.price": "Asset price",
+    "table.col.debt": "Loan debt",
+    "table.col.ltv": "LTV",
+    "table.col.wd": "Withdrawn USD",
+    "table.col.nwloan": "Net worth (loan)",
+    "table.col.qtysell": "Asset after sell",
+    "table.col.nwsell": "Net worth (sell)",
+    "table.sub.loan": "loan",
+    "table.sub.sell": "sell",
+    "foot.basis": "Basis: monthly model. All figures educational, not financial advice.",
+    "verdict.loan_better": "Loan strategy wins: +{diff} net worth, asset preserved",
+    "verdict.sell_better": "Sell strategy wins: +{diff} net worth",
+    "verdict.liquidated": "⚠️ Loan strategy crossed LTV threshold {n} times — high margin-call risk",
+    "verdict.shortfall": "Sell strategy ran out of asset: shortfall {usd}",
+    "shortfall.label": "shortfall",
+    "subDebtSold": "sold {n}",
+    "subWithdrawnLoan": "loan: {a} · sell: {b}",
+    "subAverage": "avg over period"
+  }
+};
+
+/* ==================================================================
+ *  ASSET PRESETS
+ * ================================================================== */
+const ASSET_PRESETS = {
+  btc: {
+    unit: 'BTC',
+    qty: 1,
+    price: 77268,
+    cagr: 15,
+    loanRate: 5,
+    liqLTV: 90,
+    sellMode: 'gradual',
+    cyclesOn: 1,
+    cycleAmp: 35,
+    cyclePeriod: 4
+  },
+  eth: {
+    unit: 'ETH',
+    qty: 10,
+    price: 3400,
+    cagr: 18,
+    loanRate: 5.5,
+    liqLTV: 85,
+    sellMode: 'gradual',
+    cyclesOn: 1,
+    cycleAmp: 40,
+    cyclePeriod: 4
+  },
+  sol: {
+    unit: 'SOL',
+    qty: 100,
+    price: 170,
+    cagr: 25,
+    loanRate: 7,
+    liqLTV: 85,
+    sellMode: 'gradual',
+    cyclesOn: 1,
+    cycleAmp: 50,
+    cyclePeriod: 3
+  },
+  gold: {
+    unit: 'oz',
+    qty: 50,
+    price: 2400,
+    cagr: 6,
+    loanRate: 6,
+    liqLTV: 80,
+    sellMode: 'gradual',
+    cyclesOn: 1,
+    cycleAmp: 15,
+    cyclePeriod: 7
+  },
+  realestate: {
+    unit: 'кв',
+    qty: 1,
+    price: 250000,
+    cagr: 7,
+    loanRate: 6,
+    liqLTV: 80,
+    sellMode: 'lumpsum',
+    cyclesOn: 0,
+    cycleAmp: 10,
+    cyclePeriod: 10
+  }
+};
+
+/* ==================================================================
+ *  STATE
+ * ================================================================== */
+const state = {
+  lang: 'ru',
+  asset: 'btc',
+  years: 15,
+  cashAPY: 4,
+  values: {
+    qty: 1,
+    price: 77268,
+    withdraw: 1000,
+    cagr: 15,
+    loanRate: 5,
+    liqLTV: 90,
+    sellMode: 'gradual',
+    cyclesOn: 1,
+    cycleAmp: 35,
+    cyclePeriod: 4
+  }
+};
+
+/* ==================================================================
+ *  FORMATTERS / PARSERS
+ * ================================================================== */
+function parseNumber(raw) {
+  if (raw == null) return NaN;
+  const s = String(raw).replace(/[\s  ]/g, '').replace(',', '.');
+  if (!s) return NaN;
+  const n = parseFloat(s);
+  return isFinite(n) ? n : NaN;
+}
+function formatCurrency(n, lang) {
+  const v = Math.round(n);
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  return new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
+}
+function formatCompactUSD(n, lang) {
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  const fmt = new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 });
+  return (lang === 'ru' ? '' : '$') + fmt.format(Math.round(n)) + (lang === 'ru' ? ' $' : '');
+}
+function formatNumber(n, frac, lang) {
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: frac, maximumFractionDigits: frac }).format(n);
+}
+function formatPct(n, frac) {
+  const v = (n * 100);
+  const lang = state.lang;
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: frac, maximumFractionDigits: frac }).format(v) + '%';
+}
+function formatQty(n, unit, lang) {
+  const locale = lang === 'ru' ? 'ru-RU' : 'en-US';
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 6 }).format(n) + ' ' + unit;
+}
+
+/* ==================================================================
+ *  PRICE MODEL
+ * ================================================================== */
+function priceAtMonth(m, basePrice, cagrPct, cyclesOn, cycleAmpPct, cyclePeriodYears) {
+  const monthlyGrowth = Math.pow(1 + cagrPct / 100, m / 12);
+  const trend = basePrice * monthlyGrowth;
+  if (!cyclesOn || cyclePeriodYears <= 0) return trend;
+  const wave = Math.sin(2 * Math.PI * m / (cyclePeriodYears * 12));
+  return trend * (1 + (cycleAmpPct / 100) * wave);
+}
+
+/* ==================================================================
+ *  SIMULATION — LOAN
+ * ================================================================== */
+function simulateLoan(v, years) {
+  const months = years * 12;
+  const monthlyDebtRate = v.loanRate / 100 / 12;
+  let assetQty = v.qty;
+  let debt = 0;
+  let withdrawn = 0;
+  let ltvCrosses = 0;
+  let ltvSum = 0;
+  let ltvMax = 0;
+  const series = [];
+
+  for (let m = 0; m <= months; m++) {
+    const price = priceAtMonth(m, v.price, v.cagr, v.cyclesOn, v.cycleAmp, v.cyclePeriod);
+    if (m > 0) {
+      // Accrue interest, then borrow
+      debt = debt * (1 + monthlyDebtRate);
+      debt += v.withdraw;
+      withdrawn += v.withdraw;
+    }
+    const collateralValue = assetQty * price;
+    const ltv = collateralValue > 0 ? debt / collateralValue : 0;
+    ltvSum += ltv;
+    if (ltv > ltvMax) ltvMax = ltv;
+    if (ltv >= v.liqLTV / 100) ltvCrosses++;
+    const netWorth = collateralValue - debt;
+    series.push({
+      m,
+      yearFloat: m / 12,
+      price,
+      assetQty,
+      debt,
+      ltv,
+      withdrawn,
+      netWorth,
+      collateralValue
+    });
+  }
+
+  return {
+    series,
+    ending: series[series.length - 1],
+    ltvAvg: ltvSum / (months + 1),
+    ltvMax,
+    ltvCrosses
+  };
+}
+
+/* ==================================================================
+ *  SIMULATION — SELL GRADUAL
+ * ================================================================== */
+function simulateSellGradual(v, years) {
+  const months = years * 12;
+  let assetQty = v.qty;
+  let withdrawn = 0;
+  let shortfall = 0;
+  let assetSold = 0;
+  const series = [];
+
+  for (let m = 0; m <= months; m++) {
+    const price = priceAtMonth(m, v.price, v.cagr, v.cyclesOn, v.cycleAmp, v.cyclePeriod);
+    if (m > 0) {
+      if (assetQty > 0 && price > 0) {
+        const needQty = v.withdraw / price;
+        const sellQty = Math.min(assetQty, needQty);
+        assetQty -= sellQty;
+        assetSold += sellQty;
+        const got = sellQty * price;
+        withdrawn += got;
+        shortfall += (v.withdraw - got);
+      } else {
+        shortfall += v.withdraw;
+      }
+    }
+    const netWorth = assetQty * price;
+    series.push({ m, yearFloat: m / 12, price, assetQty, withdrawn, shortfall, netWorth, cash: 0 });
+  }
+
+  return { series, ending: series[series.length - 1], assetSold, shortfall };
+}
+
+/* ==================================================================
+ *  SIMULATION — SELL LUMPSUM
+ * ================================================================== */
+function simulateSellLumpsum(v, years, cashAPY) {
+  const months = years * 12;
+  const monthlyCashRate = Math.pow(1 + cashAPY / 100, 1 / 12) - 1;
+  let cash = v.qty * v.price;
+  let withdrawn = 0;
+  let shortfall = 0;
+  const startCash = cash;
+  const series = [];
+
+  for (let m = 0; m <= months; m++) {
+    const price = priceAtMonth(m, v.price, v.cagr, v.cyclesOn, v.cycleAmp, v.cyclePeriod);
+    if (m > 0) {
+      cash = cash * (1 + monthlyCashRate);
+      if (cash >= v.withdraw) {
+        cash -= v.withdraw;
+        withdrawn += v.withdraw;
+      } else {
+        withdrawn += cash;
+        shortfall += (v.withdraw - cash);
+        cash = 0;
+      }
+    }
+    series.push({
+      m, yearFloat: m / 12, price,
+      assetQty: 0,
+      withdrawn, shortfall,
+      netWorth: cash,
+      cash
+    });
+  }
+  return { series, ending: series[series.length - 1], startCash, shortfall };
+}
+
+/* ==================================================================
+ *  CALCULATE MODEL
+ * ================================================================== */
+function calculateModel() {
+  const v = state.values;
+  const y = state.years;
+  const loan = simulateLoan(v, y);
+  const sell = v.sellMode === 'lumpsum'
+    ? simulateSellLumpsum(v, y, state.cashAPY)
+    : simulateSellGradual(v, y);
+  return { loan, sell, years: y };
+}
+
+/* ==================================================================
+ *  RENDER — SUMMARY
+ * ================================================================== */
+function renderSummary(model) {
+  const t = translations[state.lang];
+  const lang = state.lang;
+  const v = state.values;
+  const loanEnd = model.loan.ending;
+  const sellEnd = model.sell.ending;
+  const isLumpsum = v.sellMode === 'lumpsum';
+  const unit = ASSET_PRESETS[state.asset].unit;
+
+  // Net worth loan
+  document.getElementById('m-nw-loan').textContent = formatCurrency(loanEnd.netWorth, lang);
+  document.getElementById('m-nw-loan-sub').textContent =
+    (lang === 'ru' ? 'Залог: ' : 'Collateral: ') + formatCurrency(loanEnd.collateralValue, lang);
+
+  // Net worth sell
+  document.getElementById('m-nw-sell').textContent = formatCurrency(sellEnd.netWorth, lang);
+  if (isLumpsum) {
+    document.getElementById('m-nw-sell-sub').textContent =
+      (lang === 'ru' ? 'Кэш-счёт ' : 'Cash @ ') + state.cashAPY + '% APY';
+  } else {
+    document.getElementById('m-nw-sell-sub').textContent =
+      (lang === 'ru' ? 'Остаток: ' : 'Remaining: ') + formatQty(sellEnd.assetQty, unit, lang);
+  }
+
+  // Withdrawn
+  document.getElementById('m-withdrawn').textContent = formatCurrency(loanEnd.withdrawn, lang);
+  const subWd = t.subWithdrawnLoan
+    .replace('{a}', formatCompactUSD(loanEnd.withdrawn, lang))
+    .replace('{b}', formatCompactUSD(sellEnd.withdrawn, lang));
+  let subWdLine = subWd;
+  if (model.sell.shortfall > 0) {
+    subWdLine += ' · ' + t['shortfall.label'] + ' ' + formatCompactUSD(model.sell.shortfall, lang);
+  }
+  document.getElementById('m-withdrawn-sub').textContent = subWdLine;
+
+  // Debt
+  document.getElementById('m-debt').textContent = formatCurrency(loanEnd.debt, lang);
+  if (isLumpsum) {
+    document.getElementById('m-debt-sub').textContent = (lang === 'ru' ? 'Sell: разовая продажа' : 'Sell: lump-sum');
+  } else {
+    const sold = ASSET_PRESETS[state.asset].qty
+      ? (v.qty - sellEnd.assetQty) : 0;
+    document.getElementById('m-debt-sub').textContent =
+      t.subDebtSold.replace('{n}', formatQty(v.qty - sellEnd.assetQty, unit, lang));
+  }
+
+  // LTV
+  document.getElementById('m-ltv').textContent =
+    formatPct(model.loan.ltvAvg, 1) + ' / ' + formatPct(model.loan.ltvMax, 1);
+  document.getElementById('m-ltv-sub').textContent =
+    t.subAverage + (model.loan.ltvCrosses > 0
+      ? ' · ' + (lang === 'ru' ? 'пересечений: ' : 'crossings: ') + model.loan.ltvCrosses
+      : '');
+
+  // Verdict
+  const diff = loanEnd.netWorth - sellEnd.netWorth;
+  const v_el = document.getElementById('verdict');
+  const v_text = document.getElementById('verdictText');
+  v_el.classList.remove('warn', 'danger');
+  if (model.loan.ltvCrosses > 0) {
+    v_el.classList.add('warn');
+    v_text.textContent = t['verdict.liquidated'].replace('{n}', model.loan.ltvCrosses);
+  } else if (model.sell.shortfall > 0) {
+    v_el.classList.add('warn');
+    v_text.textContent = t['verdict.shortfall'].replace('{usd}', formatCurrency(model.sell.shortfall, lang));
+  } else if (diff > 0) {
+    v_text.textContent = t['verdict.loan_better'].replace('{diff}', formatCurrency(diff, lang));
+  } else {
+    v_text.textContent = t['verdict.sell_better'].replace('{diff}', formatCurrency(-diff, lang));
+  }
+}
+
+/* ==================================================================
+ *  CHART RENDER
+ * ================================================================== */
+let charts = {};
+
+function chartBaseOptions(lang, yFmt) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1A1E26',
+        padding: 10,
+        cornerRadius: 8,
+        titleFont: { family: 'Inter', size: 11, weight: '500' },
+        bodyFont: { family: 'Inter', size: 12 },
+        callbacks: {
+          title: (items) => {
+            const yf = items[0].parsed.x;
+            const yi = Math.floor(yf);
+            const mo = Math.round((yf - yi) * 12);
+            return (lang === 'ru' ? `${yi} г ${mo} мес` : `${yi}y ${mo}mo`);
+          },
+          label: (item) => {
+            const lbl = item.dataset.label || '';
+            return lbl + ': ' + (yFmt ? yFmt(item.parsed.y) : item.parsed.y);
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        type: 'linear',
+        ticks: {
+          color: '#7B7E87',
+          font: { family: 'Inter', size: 11 },
+          callback: (v) => lang === 'ru' ? Math.round(v) + ' г' : Math.round(v) + 'y'
+        },
+        grid: { display: false }
+      },
+      y: {
+        ticks: {
+          color: '#7B7E87',
+          font: { family: 'Inter', size: 11 },
+          callback: yFmt ? (v) => yFmt(v) : undefined
+        },
+        grid: { color: 'rgba(36,40,48,0.05)' }
+      }
+    },
+    elements: {
+      point: { radius: 0, hoverRadius: 4 },
+      line: { tension: 0.25, borderWidth: 2 }
+    }
+  };
+}
+
+function renderChart(id, datasets, lang, yFmt, extraOpts) {
+  if (charts[id]) { charts[id].destroy(); }
+  const ctx = document.getElementById(id).getContext('2d');
+  const opts = chartBaseOptions(lang, yFmt);
+  if (extraOpts) Object.assign(opts.scales.y, extraOpts.yScale || {});
+  charts[id] = new Chart(ctx, { type: 'line', data: { datasets }, options: opts });
+}
+
+function renderAllCharts(model) {
+  const lang = state.lang;
+  const teal = '#2F7D6B';
+  const sand = '#B7A78A';
+  const amber = '#C8864E';
+  const rust = '#B2573A';
+
+  const fmtUSD = (v) => formatCompactUSD(v, lang);
+  const unit = ASSET_PRESETS[state.asset].unit;
+
+  // Chart 1: Net worth loan vs sell
+  renderChart('chart-networth', [
+    {
+      label: translations[lang]['legend.loan'],
+      data: model.loan.series.map(p => ({ x: p.yearFloat, y: p.netWorth })),
+      borderColor: teal, backgroundColor: teal, fill: false
+    },
+    {
+      label: translations[lang]['legend.sell'],
+      data: model.sell.series.map(p => ({ x: p.yearFloat, y: p.netWorth })),
+      borderColor: sand, backgroundColor: sand, borderDash: [4, 4], fill: false
+    }
+  ], lang, fmtUSD);
+
+  // Chart 2: Withdrawn
+  renderChart('chart-withdrawn', [
+    {
+      label: translations[lang]['legend.loan'],
+      data: model.loan.series.map(p => ({ x: p.yearFloat, y: p.withdrawn })),
+      borderColor: teal, backgroundColor: teal, fill: false
+    },
+    {
+      label: translations[lang]['legend.sell'],
+      data: model.sell.series.map(p => ({ x: p.yearFloat, y: p.withdrawn })),
+      borderColor: sand, backgroundColor: sand, borderDash: [4, 4], fill: false
+    }
+  ], lang, fmtUSD);
+
+  // Chart 3: Quantity
+  const qtyFmt = (v) => formatNumber(v, 3, lang) + ' ' + unit;
+  renderChart('chart-qty', [
+    {
+      label: translations[lang]['legend.loan'],
+      data: model.loan.series.map(p => ({ x: p.yearFloat, y: p.assetQty })),
+      borderColor: teal, backgroundColor: teal, fill: false
+    },
+    {
+      label: translations[lang]['legend.sell'],
+      data: model.sell.series.map(p => ({ x: p.yearFloat, y: p.assetQty })),
+      borderColor: sand, backgroundColor: sand, borderDash: [4, 4], fill: false
+    }
+  ], lang, (v) => formatNumber(v, 2, lang), { yScale: { beginAtZero: true } });
+
+  // Chart 4: LTV
+  const liq = state.values.liqLTV / 100;
+  const ltvSeries = model.loan.series.map(p => ({ x: p.yearFloat, y: p.ltv * 100 }));
+  const liqLine = model.loan.series.map(p => ({ x: p.yearFloat, y: state.values.liqLTV }));
+  renderChart('chart-ltv', [
+    {
+      label: translations[lang]['legend.ltv'],
+      data: ltvSeries,
+      borderColor: amber, backgroundColor: amber, fill: false
+    },
+    {
+      label: 'Liquidation',
+      data: liqLine,
+      borderColor: rust, backgroundColor: rust, borderDash: [6, 6], fill: false, pointRadius: 0
+    }
+  ], lang, (v) => formatNumber(v, 0, lang) + '%', { yScale: { beginAtZero: true, max: Math.max(100, state.values.liqLTV * 1.1) } });
+
+  // Update liq legend text
+  document.getElementById('liq-legend').textContent =
+    (lang === 'ru' ? 'Порог ' : 'Threshold ') + Math.round(state.values.liqLTV) + '%';
+
+  // Update qty axis legend
+  document.getElementById('ch3-over').textContent = unit;
+}
+
+/* ==================================================================
+ *  TABLE RENDER
+ * ================================================================== */
+function renderTable(model) {
+  const t = translations[state.lang];
+  const lang = state.lang;
+  const v = state.values;
+  const unit = ASSET_PRESETS[state.asset].unit;
+  const isLumpsum = v.sellMode === 'lumpsum';
+
+  const head = document.getElementById('annualHead');
+  head.innerHTML = '';
+  ['table.col.year', 'table.col.price', 'table.col.debt', 'table.col.ltv', 'table.col.wd',
+   'table.col.nwloan', 'table.col.qtysell', 'table.col.nwsell'].forEach(k => {
+    const th = document.createElement('th');
+    th.textContent = t[k];
+    head.appendChild(th);
+  });
+
+  const body = document.getElementById('annualBody');
+  body.innerHTML = '';
+
+  for (let y = 1; y <= state.years; y++) {
+    const idx = y * 12;
+    const loanP = model.loan.series[idx];
+    const sellP = model.sell.series[idx];
+    const tr = document.createElement('tr');
+    if (y === state.years) tr.classList.add('last');
+    if (loanP.ltv >= v.liqLTV / 100) tr.classList.add('warn');
+
+    const cells = [
+      String(y),
+      formatCurrency(loanP.price, lang),
+      formatCurrency(loanP.debt, lang),
+      formatPct(loanP.ltv, 1),
+      `<span>${(lang === 'ru' ? 'займ ' : 'loan ') + formatCurrency(loanP.withdrawn, lang)}</span>` +
+      `<span class="sub">${(lang === 'ru' ? 'продажа ' : 'sell ') + formatCurrency(sellP.withdrawn, lang)}</span>`,
+      formatCurrency(loanP.netWorth, lang),
+      isLumpsum ? '—' : formatNumber(sellP.assetQty, 6, lang) + ' ' + unit,
+      formatCurrency(sellP.netWorth, lang)
+    ];
+    cells.forEach(c => {
+      const td = document.createElement('td');
+      td.innerHTML = c;
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  }
+}
+
+/* ==================================================================
+ *  UPDATE — FULL RECALC
+ * ================================================================== */
+function update() {
+  const model = calculateModel();
+  renderSummary(model);
+  renderAllCharts(model);
+  renderTable(model);
+}
+
+/* ==================================================================
+ *  APPLY PRESET
+ * ================================================================== */
+function applyAsset(key) {
+  state.asset = key;
+  const p = ASSET_PRESETS[key];
+  state.values.qty = p.qty;
+  state.values.price = p.price;
+  state.values.cagr = p.cagr;
+  state.values.loanRate = p.loanRate;
+  state.values.liqLTV = p.liqLTV;
+  state.values.sellMode = p.sellMode;
+  state.values.cyclesOn = p.cyclesOn;
+  state.values.cycleAmp = p.cycleAmp;
+  state.values.cyclePeriod = p.cyclePeriod;
+  // Update inputs
+  setVal('f-qty', p.qty);
+  setVal('f-price', p.price);
+  setVal('f-cagr', p.cagr);
+  setVal('f-loanrate', p.loanRate);
+  setVal('f-liq', p.liqLTV);
+  setVal('f-cycleamp', p.cycleAmp);
+  setVal('f-cycleperiod', p.cyclePeriod);
+  // Sell mode toggle
+  document.querySelectorAll('#sellMode button').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.mode === p.sellMode ? 'true' : 'false');
+  });
+  // Cycles toggle
+  document.querySelectorAll('#cyclesToggle button').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.on) === String(p.cyclesOn) ? 'true' : 'false');
+  });
+  // Asset buttons
+  document.querySelectorAll('#assetPicker .asset-btn').forEach(b => {
+    b.setAttribute('aria-pressed', b.dataset.asset === key ? 'true' : 'false');
+  });
+  // Unit tag
+  document.getElementById('qty-unit').textContent = p.unit;
+}
+
+function setVal(id, v) {
+  document.getElementById(id).value = String(v);
+}
+
+/* ==================================================================
+ *  BIND EVENTS
+ * ================================================================== */
+function bindEvents() {
+  // Asset picker
+  document.querySelectorAll('#assetPicker .asset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      applyAsset(btn.dataset.asset);
+      update();
+    });
+  });
+
+  // Horizon presets
+  document.querySelectorAll('#presets button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.years = parseInt(btn.dataset.years, 10);
+      document.querySelectorAll('#presets button').forEach(b => b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+      setVal('f-years', state.years);
+      update();
+    });
+  });
+
+  // Lang
+  document.querySelectorAll('#langSwitch button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.lang = btn.dataset.lang;
+      document.querySelectorAll('#langSwitch button').forEach(b => b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+      document.documentElement.lang = state.lang;
+      applyI18n();
+      update();
+    });
+  });
+
+  // Sell mode toggle
+  document.querySelectorAll('#sellMode button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.values.sellMode = btn.dataset.mode;
+      document.querySelectorAll('#sellMode button').forEach(b => b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+      update();
+    });
+  });
+  document.querySelectorAll('#cyclesToggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.values.cyclesOn = parseInt(btn.dataset.on, 10);
+      document.querySelectorAll('#cyclesToggle button').forEach(b => b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+      update();
+    });
+  });
+
+  // Input fields
+  const bindings = [
+    ['f-qty', (n) => state.values.qty = n],
+    ['f-price', (n) => state.values.price = n],
+    ['f-withdraw', (n) => state.values.withdraw = n],
+    ['f-cagr', (n) => state.values.cagr = n],
+    ['f-loanrate', (n) => state.values.loanRate = n],
+    ['f-liq', (n) => state.values.liqLTV = n],
+    ['f-cashapy', (n) => state.cashAPY = n],
+    ['f-cycleamp', (n) => state.values.cycleAmp = n],
+    ['f-cycleperiod', (n) => state.values.cyclePeriod = n],
+    ['f-years', (n) => {
+      state.years = Math.max(1, Math.min(50, Math.round(n)));
+      document.querySelectorAll('#presets button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.years) === String(state.years) ? 'true' : 'false'));
+    }]
+  ];
+  bindings.forEach(([id, setter]) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => {
+      const n = parseNumber(el.value);
+      if (!isNaN(n) && n >= 0) {
+        setter(n);
+        update();
+      }
+    });
+    el.addEventListener('blur', () => {
+      const n = parseNumber(el.value);
+      if (!isNaN(n) && n >= 0) {
+        // re-format
+        if (id === 'f-qty' || id === 'f-cycleperiod') {
+          el.value = String(n);
+        } else if (id === 'f-cagr' || id === 'f-loanrate' || id === 'f-liq' || id === 'f-cashapy' || id === 'f-cycleamp') {
+          el.value = String(n);
+        } else if (id === 'f-years') {
+          el.value = String(state.years);
+        } else {
+          el.value = new Intl.NumberFormat(state.lang === 'ru' ? 'ru-RU' : 'en-US', { maximumFractionDigits: 2 }).format(n);
+        }
+      }
+    });
+    el.addEventListener('focus', () => {
+      const raw = parseNumber(el.value);
+      if (!isNaN(raw)) el.value = String(raw);
+    });
+  });
+}
+
+/* ==================================================================
+ *  I18N — apply text to data-i18n elements
+ * ================================================================== */
+function applyI18n() {
+  const t = translations[state.lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (t[k]) el.innerHTML = t[k];
+  });
+}
+
+/* ==================================================================
+ *  INIT
+ * ================================================================== */
+function init() {
+  applyAsset('btc');
+  setVal('f-withdraw', state.values.withdraw);
+  setVal('f-years', state.years);
+  setVal('f-cashapy', state.cashAPY);
+  applyI18n();
+  bindEvents();
+  update();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
