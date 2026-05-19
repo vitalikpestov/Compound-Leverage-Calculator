@@ -117,7 +117,7 @@
 
   /* ===== Asset picker ===== */
   .asset-picker {
-    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px; margin-top: 4px;
   }
   .asset-btn {
@@ -343,6 +343,11 @@
         <span class="asset-name">Solana</span>
         <span class="asset-sub" data-i18n="asset.sol.sub">CAGR 25% · LTV 40%</span>
       </button>
+      <button type="button" class="asset-btn" data-asset="stocks">
+        <span class="asset-icon">📈</span>
+        <span class="asset-name" data-i18n="asset.stocks.name">Акции и ETF</span>
+        <span class="asset-sub" data-i18n="asset.stocks.sub">CAGR 10% · LTV 50%</span>
+      </button>
       <button type="button" class="asset-btn" data-asset="gold">
         <span class="asset-icon">🪙</span>
         <span class="asset-name" data-i18n="asset.gold.name">Золото</span>
@@ -563,6 +568,8 @@ const translations = {
     "asset.btc.sub": "CAGR 15% · LTV 50%",
     "asset.eth.sub": "CAGR 18% · LTV 50%",
     "asset.sol.sub": "CAGR 25% · LTV 40%",
+    "asset.stocks.name": "Акции и ETF",
+    "asset.stocks.sub": "CAGR 10% · LTV 50%",
     "asset.gold.name": "Золото",
     "asset.gold.sub": "CAGR 6% · LTV 60%",
     "asset.re.name": "Недвижимость",
@@ -646,6 +653,8 @@ const translations = {
     "asset.btc.sub": "CAGR 15% · LTV 50%",
     "asset.eth.sub": "CAGR 18% · LTV 50%",
     "asset.sol.sub": "CAGR 25% · LTV 40%",
+    "asset.stocks.name": "Stocks & ETF",
+    "asset.stocks.sub": "CAGR 10% · LTV 50%",
     "asset.gold.name": "Gold",
     "asset.gold.sub": "CAGR 6% · LTV 60%",
     "asset.re.name": "Real estate",
@@ -760,6 +769,18 @@ const ASSET_PRESETS = {
     cyclesOn: 1,
     cycleAmp: 50,
     cyclePeriod: 3
+  },
+  stocks: {
+    unit: 'ед.',
+    qty: 100,
+    price: 500,
+    cagr: 10,
+    loanRate: 7,
+    liqLTV: 80,
+    sellMode: 'gradual',
+    cyclesOn: 1,
+    cycleAmp: 25,
+    cyclePeriod: 7
   },
   gold: {
     unit: 'oz',
